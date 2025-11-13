@@ -1,13 +1,17 @@
 "use client";
 
 import clsx from "clsx";
-import type { Schedule } from "../lib/demoStore";
+import { useMemo } from "react";
+import type { Agency, Schedule } from "../lib/demoStore";
 
 type ScheduleListProps = {
   schedules: Schedule[];
   highlightSeriesId?: string | null;
   agencyId?: string | null;
   onSeriesSelect?: (seriesId: string) => void;
+  agencies: Agency[];
+  visibleAgencyIds: string[];
+  isAdmin?: boolean;
 };
 
 function formatDate(date: string): string {
@@ -18,13 +22,86 @@ function formatTimeRange(start: string, end: string): string {
   return `${start}〜${end}`;
 }
 
+type SeriesRow = {
+  seriesId: string;
+  startDate: string;
+  endDate: string;
+  title: string;
+  place: string;
+  memo: string;
+  startTime: string;
+  endTime: string;
+  agencyId: string;
+};
+
+function formatDateRange(row: SeriesRow): string {
+  const start = formatDate(row.startDate);
+  const end = formatDate(row.endDate);
+  if (start === end) {
+    return start;
+  }
+  return `${start}〜${end}`;
+}
+
 export default function ScheduleList({
   schedules,
   highlightSeriesId,
   agencyId,
-  onSeriesSelect
+  onSeriesSelect,
+  agencies,
+  visibleAgencyIds,
+  isAdmin = false
 }: ScheduleListProps) {
-  if (schedules.length === 0) {
+  const rows = useMemo<SeriesRow[]>(() => {
+    if (visibleAgencyIds.length === 0) {
+      return [];
+    }
+    const visibleSet = new Set(visibleAgencyIds);
+    const grouped = schedules.reduce((map, schedule) => {
+      if (!visibleSet.has(schedule.agencyId)) {
+        return map;
+      }
+      const key = schedule.seriesId ?? schedule.id;
+      const list = map.get(key) ?? [];
+      list.push(schedule);
+      map.set(key, list);
+      return map;
+    }, new Map<string, Schedule[]>());
+
+    return Array.from(grouped.entries()).map(([seriesId, group]) => {
+      const sorted = [...group].sort((a, b) => a.date.localeCompare(b.date));
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
+      return {
+        seriesId,
+        startDate: first.date,
+        endDate: last.date,
+        title: first.title,
+        place: first.place,
+        memo: first.memo ?? "",
+        startTime: first.startTime,
+        endTime: first.endTime,
+        agencyId: first.agencyId
+      };
+    })
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  }, [schedules, visibleAgencyIds]);
+
+  const agencyColorMap = useMemo(
+    () =>
+      agencies.reduce<Record<string, string>>((map, agency, index) => {
+        if (agency.color) {
+          map[agency.id] = agency.color;
+        } else {
+          const fallbackPalette = ["#38bdf8", "#f97316", "#22c55e", "#a855f7", "#facc15"];
+          map[agency.id] = fallbackPalette[index % fallbackPalette.length];
+        }
+        return map;
+      }, {}),
+    [agencies]
+  );
+
+  if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/40 p-6 text-sm text-slate-300">
         {agencyId
@@ -46,33 +123,38 @@ export default function ScheduleList({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
-          {schedules.map((schedule) => {
-            const seriesId = schedule.seriesId ?? schedule.id;
-            const isHighlight = highlightSeriesId === seriesId;
+          {rows.map((row) => {
+            const isHighlight = highlightSeriesId === row.seriesId;
+            const seriesColor = agencyColorMap[row.agencyId] ?? "#64748b";
             return (
               <tr
-                key={schedule.id}
+                key={row.seriesId}
                 className={clsx(
                   "transition",
-                  isHighlight
-                    ? "bg-slate-800/80"
-                    : "hover:bg-slate-800/40",
-                  onSeriesSelect && "cursor-pointer"
+                  isHighlight ? "bg-slate-800/80" : "hover:bg-slate-800/40",
+                  isAdmin && onSeriesSelect ? "cursor-pointer" : "cursor-default"
                 )}
                 onClick={() => {
-                  if (onSeriesSelect) {
-                    onSeriesSelect(seriesId);
+                  if (isAdmin && onSeriesSelect) {
+                    onSeriesSelect(row.seriesId);
                   }
                 }}
               >
                 <td className="px-4 py-3 font-medium text-slate-100">
-                  {formatDate(schedule.date)}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-block h-3 w-3 rounded"
+                      style={{ backgroundColor: seriesColor }}
+                      aria-hidden
+                    />
+                    {formatDateRange(row)}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-slate-200">
-                  {formatTimeRange(schedule.startTime, schedule.endTime)}
+                  {formatTimeRange(row.startTime, row.endTime)}
                 </td>
-                <td className="px-4 py-3 text-slate-200">{schedule.place}</td>
-                <td className="px-4 py-3 text-slate-300">{schedule.memo ?? "-"}</td>
+                <td className="px-4 py-3 text-slate-200">{row.place}</td>
+                <td className="px-4 py-3 text-slate-300">{row.memo || "-"}</td>
               </tr>
             );
           })}

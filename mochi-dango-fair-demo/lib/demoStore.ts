@@ -1,6 +1,7 @@
 export type Agency = {
   id: string;
   name: string;
+  color: string;
 };
 
 export type Schedule = {
@@ -27,9 +28,9 @@ export type AddSchedulesForDatesInput = {
 };
 
 const agencies: Agency[] = [
-  { id: "agency-a", name: "A代理店" },
-  { id: "agency-b", name: "B代理店" },
-  { id: "agency-c", name: "C代理店" }
+  { id: "agency-a", name: "A代理店", color: "#38bdf8" },
+  { id: "agency-b", name: "B代理店", color: "#f97316" },
+  { id: "agency-c", name: "C代理店", color: "#22c55e" }
 ];
 
 const schedules: Schedule[] = [

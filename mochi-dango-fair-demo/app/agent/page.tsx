@@ -2,20 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Calendar from "../../components/Calendar";
-import RuleForm from "../../components/RuleForm";
 import ScheduleList from "../../components/ScheduleList";
 import { demoStore, type Schedule } from "../../lib/demoStore";
-
-type RuleFormInitialValues = {
-  seriesId: string;
-  dates: string[];
-  title: string;
-  place: string;
-  memo: string;
-  startTime: string;
-  endTime: string;
-  agencyId: string;
-};
 
 function formatDateDisplay(date: string): string {
   return date.replace(/-/g, "/");
@@ -31,18 +19,17 @@ export default function AgentPage() {
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(
     demoStore.agencies[0]?.id ?? null
   );
-  const [refreshKey, setRefreshKey] = useState(0);
   const [highlightSeriesId, setHighlightSeriesId] = useState<string | null>(null);
-  const [editingSeriesId, setEditingSeriesId] = useState<string | null>(null);
-  const [editingInitialValues, setEditingInitialValues] =
-    useState<RuleFormInitialValues | null>(null);
+  const [visibleAgencyIds, setVisibleAgencyIds] = useState<string[]>(
+    selectedAgencyId ? [selectedAgencyId] : []
+  );
 
   const filteredSchedules = useMemo<Schedule[]>(() => {
     if (!selectedAgencyId) {
       return [];
     }
     return demoStore.getSchedulesForAgent(selectedAgencyId);
-  }, [selectedAgencyId, refreshKey]);
+  }, [selectedAgencyId]);
 
   const nextSchedule = useMemo(() => getNextSchedule(filteredSchedules), [filteredSchedules]);
 
@@ -50,12 +37,6 @@ export default function AgentPage() {
     () => demoStore.agencies.find((agency) => agency.id === selectedAgencyId) ?? null,
     [selectedAgencyId]
   );
-
-  const clearEditingState = () => {
-    setHighlightSeriesId(null);
-    setEditingSeriesId(null);
-    setEditingInitialValues(null);
-  };
 
   const handleSeriesSelect = (seriesId: string) => {
     const seriesSchedules = demoStore.getSchedulesBySeries(seriesId);
@@ -66,33 +47,21 @@ export default function AgentPage() {
     const first = sorted[0];
 
     setHighlightSeriesId(seriesId);
-    setEditingSeriesId(seriesId);
-    setEditingInitialValues({
-      seriesId,
-      dates: sorted.map((schedule) => schedule.date),
-      title: first.title,
-      place: first.place,
-      memo: first.memo ?? "",
-      startTime: first.startTime,
-      endTime: first.endTime,
-      agencyId: first.agencyId
-    });
-
-    if (selectedAgencyId !== first.agencyId) {
-      setSelectedAgencyId(first.agencyId);
-    }
-  };
-
-  const handleFormSaved = () => {
-    setRefreshKey((prev) => prev + 1);
-    clearEditingState();
   };
 
   const handleAgencyChange = (value: string) => {
     const nextValue = value === "" ? null : value;
     setSelectedAgencyId(nextValue);
-    setRefreshKey((prev) => prev + 1);
-    clearEditingState();
+    setHighlightSeriesId(null);
+    setVisibleAgencyIds(nextValue ? [nextValue] : []);
+  };
+
+  const handleToggleAgencyVisible = (agencyId: string) => {
+    setVisibleAgencyIds((prev) =>
+      prev.includes(agencyId)
+        ? prev.filter((id) => id !== agencyId)
+        : [...prev, agencyId]
+    );
   };
 
   return (
@@ -101,7 +70,7 @@ export default function AgentPage() {
         <div>
           <h1 className="text-xl font-semibold">代理店ポータル</h1>
           <p className="text-sm text-slate-400">
-            自分の代理店に紐づく催事スケジュールを確認し、必要に応じて日程を追加できます。
+            自分の代理店に紐づく催事スケジュールを確認できます。編集は管理者に依頼してください。
           </p>
         </div>
         <label className="flex w-full max-w-xs flex-col gap-1 text-sm text-slate-200">
@@ -170,8 +139,11 @@ export default function AgentPage() {
                 <h2 className="mb-4 text-lg font-semibold">催事スケジュール</h2>
                 <Calendar
                   schedules={filteredSchedules}
-                  agencyId={selectedAgencyId}
+                  agencies={demoStore.agencies.filter((agency) => agency.id === selectedAgencyId)}
+                  visibleAgencyIds={visibleAgencyIds}
+                  onToggleAgencyVisible={handleToggleAgencyVisible}
                   onSeriesSelect={handleSeriesSelect}
+                  isAdmin={false}
                 />
               </div>
               <div>
@@ -181,18 +153,13 @@ export default function AgentPage() {
                   agencyId={selectedAgencyId}
                   highlightSeriesId={highlightSeriesId}
                   onSeriesSelect={handleSeriesSelect}
+                  agencies={demoStore.agencies.filter((agency) => agency.id === selectedAgencyId)}
+                  visibleAgencyIds={visibleAgencyIds}
+                  isAdmin={false}
                 />
               </div>
             </section>
           </div>
-
-          <RuleForm
-            agencies={demoStore.agencies}
-            selectedAgencyId={selectedAgencyId}
-            editingSeriesId={editingSeriesId}
-            initialValues={editingInitialValues}
-            onSaved={handleFormSaved}
-          />
         </>
       )}
     </div>

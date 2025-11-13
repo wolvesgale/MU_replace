@@ -39,6 +39,7 @@ type RuleFormProps = {
   editingSeriesId?: string | null;
   initialValues?: RuleFormInitialValues | null;
   onSaved?: () => void;
+  isAdmin?: boolean;
 };
 
 const initialRuleState: RuleFormState = {
@@ -85,7 +86,8 @@ export default function RuleForm({
   selectedAgencyId,
   editingSeriesId,
   initialValues,
-  onSaved
+  onSaved,
+  isAdmin = false
 }: RuleFormProps) {
   const [ruleState, setRuleState] = useState<RuleFormState>(initialRuleState);
   const [scheduleState, setScheduleState] =
@@ -117,7 +119,7 @@ export default function RuleForm({
     [agencies, activeAgencyId]
   );
 
-  const isDisabled = !activeAgencyId;
+  const isDisabled = !isAdmin || !activeAgencyId;
   const sortedDates = useMemo(
     () => uniqueSortedDates(selectedDates),
     [selectedDates]
@@ -151,6 +153,10 @@ export default function RuleForm({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!isAdmin) {
+      return;
+    }
+
     const agencyIdForSubmit = activeAgencyId;
 
     if (!agencyIdForSubmit) {

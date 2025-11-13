@@ -17,6 +17,7 @@
   margin-bottom: 0.75rem;
   gap: 0.5rem;
   font-size: 0.875rem;
+  flex-wrap: wrap;
 }
 
 .fc .fc-toolbar-title {

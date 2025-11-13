@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import "./globals.css";
+import "./fullcalendar.css";
 
 export const metadata: Metadata = {
   title: "MU企画 | 催事販売デモ",
